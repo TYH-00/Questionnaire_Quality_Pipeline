@@ -33,38 +33,7 @@
 
 ---
 
-## 2. 這個工具不能單獨證明什麼？
-
-即使 EFA、factor loading、AVE、HTMT、alpha 與 omega 的數字全部「看起來很好」，也不代表問卷已完成所有 validity（效度）驗證。
-
-### 2.1 Validity 不是一個單一係數
-
-依測驗與測量的當代觀點，**validity（效度）是支持特定分數解釋與使用方式的累積證據**，不是問卷本身永久擁有的一張合格證書。
-
-本工具主要提供：
-
-- **evidence based on internal structure（基於內部結構的證據）**
-- **structural validity evidence（結構效度證據）**
-- **internal consistency reliability evidence（內部一致性信度證據）**
-- 題目與分量表之間的初步 **convergent evidence（聚合相關證據）**
-- 分量表之間的初步 **discriminant evidence（區辨相關證據）**
-
-本工具無法僅從一份作答 Excel 自動建立：
-
-- **content validity（內容效度）**：題目是否完整涵蓋構念內容。
-- **response-process evidence（反應歷程證據）**：受試者是否依預期理解題目。
-- **criterion-related validity（效標關聯效度）**：與外部效標、行為或既有量表的關係。
-- **predictive validity（預測效度）**：能否預測未來結果。
-- **known-groups validity（已知群體效度）**：是否能區分理論上應不同的群體。
-- **test–retest reliability（重測信度）**：跨時間穩定性。
-- **measurement invariance（測量恆等性）**：不同性別、年級、語言或群體是否以相同方式測量。
-- **independent-sample confirmation（獨立樣本確認）**：新樣本中的 CFA／ESEM 重現性。
-
-因此報告採用以下較準確的說法：
-
-> 本分析提供信度證據與基於內部結構的初步效度證據，而非宣稱問卷已完成全面效度驗證。
-
-### 2.2 EFA、AVE 與 HTMT 的定位
+### 2. EFA、AVE 與 HTMT 的定位
 
 - **EFA** 探索題目共同變異所形成的潛在結構，是 structural validity 的重要證據，但結果高度依賴目前樣本。
 - **average variance extracted, AVE（平均變異抽取量）** 與 **composite reliability, CR（組合信度）** 原本多在 CFA／SEM 的明確測量模型下解讀。本工具由 EFA 負荷計算時，應視為 exploratory diagnostic（探索性診斷），不能取代 CFA。
@@ -73,92 +42,7 @@
 
 ---
 
-## 3. 做完後能不能用於 correlation 或 regression？
-
-### 3.1 不是「能跑」與「不能跑」的二分問題
-
-統計軟體即使面對低信度或錯誤結構的分量表，仍然會算出 correlation coefficient（相關係數）或 regression coefficient（迴歸係數）。真正的問題是：
-
-> 這些係數是否仍可解釋為研究者所主張的構念關係？
-
-### 3.2 建議判斷表
-
-| 內部結構 | 信度 | 後續 correlation／regression 建議 |
-|---|---|---|
-| 結構清楚，信度合理 | 合理 | 可以進行；報告本樣本的測量證據與限制。若屬新問卷，仍宜稱為初步或探索性使用。 |
-| 結構清楚，但信度偏低 | 偏低 | 可作探索性分析，但測量誤差可能使關聯衰減、標準誤增加及統計功效下降。應報告信度信賴區間、進行敏感度分析，或考慮 latent-variable model（潛在變項模型）。 |
-| 信度高，但結構不清楚 | 高 | 不應因 alpha／omega 高就直接使用。題目可能一致地測量了與原定構念不同的東西，或多個構念被混在一起。 |
-| 原 section 彼此高度重疊 | 可能都高 | 若將高度重疊的分量表同時作為 predictors（預測變項），可能出現 multicollinearity（多重共線性）與係數不穩定。應檢查 VIF、tolerance、condition index，並考慮合併、上位因素或只使用理論上必要的預測變項。 |
-| 結構與信度均明顯不佳 | 低 | 不建議將分量表分數作為已建立構念進行確認性推論。最多可作探索性、描述性或敏感度分析，並優先修訂問卷。 |
-
-### 3.3 低信度不等於多重共線性
-
-這兩個問題不同：
-
-- **low reliability（低信度）** 是單一分數內含較多 measurement error（測量誤差）。
-- **multicollinearity（多重共線性）** 是多個 regression predictors 彼此高度相關，導致各自的獨立效果難以分離。
-
-低信度通常不會直接「造成」多重共線性。較常見的後果是：
-
-- observed correlation（觀察相關）可能被 attenuation（衰減）。
-- predictor 含 classical measurement error 時，迴歸斜率常向零偏誤，稱為 **regression dilution／attenuation bias（迴歸稀釋／衰減偏誤）**。
-- outcome 含獨立隨機測量誤差時，通常會增加 residual variance（殘差變異）、降低精確度與統計功效；實際偏誤仍取決於測量誤差機制。
-
-多重共線性較可能出現在以下情況：
-
-- 原定兩個 section 在 EFA 中聚集成同一因素。
-- 因素相關極高。
-- HTMT 偏高。
-- 兩個分量表題目內容高度重疊。
-- 兩個分量表總分在目前樣本中高度相關。
-
-### 3.4 如果效度或信度「沒有過」還能不能做 regression？
-
-沒有任何單一的 `.70`、`.50` 或 `.85` 門檻能自動裁決所有研究。較合理的原則是：
-
-#### 情況 A：信度略低，但構念很重要且題數很少
-
-可以保留並作探索性分析，但應：
-
-- 報告 omega／alpha 與 confidence interval（信賴區間）。
-- 說明題數少可能限制係數。
-- 避免對小效果或不顯著結果作過度解讀。
-- 考慮使用 SEM／latent regression 將 measurement error 納入模型。
-- 在新樣本中增加或改寫題目。
-
-#### 情況 B：信度高，但因素結構與理論不一致
-
-不宜直接把分量表當作原定構念。高信度可能只是題目高度重複。應先處理：
-
-- 分量表是否其實形成其他因素。
-- 是否應改名。
-- 是否需要合併或拆分。
-- 是否存在 wording／reverse-item method factor（措辭／反向題方法因素）。
-
-#### 情況 C：統計建議合併，但理論上不能合併
-
-可以暫時保留原 section，但必須透明報告：
-
-- 統計替代方案建議多少因素。
-- 哪些 section 在替代模型中共同落入同一因素。
-- 為何理論上仍需分開。
-- 原 section 的區辨性在本樣本中未獲充分支持。
-- 相關／迴歸中的 section-specific effects（分量表獨立效果）只能作探索性解讀。
-
-#### 情況 D：結構與信度均嚴重不佳
-
-不建議用該分量表作正式 hypothesis testing（假設檢定）或確認性 regression。可以：
-
-- 僅呈現題目層級描述統計。
-- 將結果標為 pilot／exploratory evidence（前導／探索性證據）。
-- 比較原定計分、替代計分與不刪題計分的 sensitivity analyses。
-- 改寫問卷後重新蒐集資料。
-
----
-
-## 4. 理論優先，但不隱藏反證
-
-### 4.1 Planned dimensions（原定構面）是主要工作方案
+## 3. Planned dimensions（原定構面）是主要工作方案
 
 若 `codebook.expected_factor` 填入四個不同 section 名稱，程式會將 4 視為 planned factor count（原定因素數）。
 
@@ -169,36 +53,9 @@
 - 不讓單因素模型因為「不可能出現交叉負荷」而取得不公平優勢。
 - 樣本小於設定值時，不以一次 EFA 永久推翻原定結構。
 
-### 4.2 什麼情況才視為原定因素數有強烈反證？
-
-原定方案可能被建議調整，通常需要同時出現多項警示，例如：
-
-- 某因素少於三個有效題目。
-- **Heywood case（不當解）**，如負獨特性或共同性不合理。
-- 因素間相關接近無法區分。
-- RMSR 明顯偏高。
-- 大量題目主要負荷低。
-- 大量嚴重交叉負荷。
-- 大量低共同性。
-- 替代因素數同時獲平行分析支持，而且模型結構有實質改善。
-
-### 4.3 原定方案與統計替代方案都會保留
-
-若原定為 4 factors，而統計替代為 2 或 3 factors，輸出會同時包括：
-
-- planned solution（原定方案）的負荷矩陣、因素相關、信度、AVE、HTMT。
-- statistical alternative solution（統計替代方案）的相同結果。
-- planned section × empirical factor（原 section × 實際因素）對照。
-- 哪些 section 可能聚集到同一替代因素。
-- `paper_ready_summary.txt` 中兩種論文寫法。
-
-研究者可以基於理論保留 4 個 section，但不能寫成「EFA 證實四因素」。較正確的說法是：
-
-> The planned four-subscale scoring structure was retained on theoretical grounds, whereas the more parsimonious factor solution was reported as a sensitivity analysis. The distinctiveness of the four subscales remains to be confirmed in an independent sample.
-
 ---
 
-## 5. 如何判斷哪些 section 被合併？
+## 4. 如何判斷哪些 section 被合併？
 
 程式建立 **section–factor crosswalk（section－因素對照表）**：
 
@@ -223,9 +80,9 @@
 
 ---
 
-## 6. Item deletion（刪題）與內容效度保護
+## 5. Item deletion（刪題）與內容效度保護
 
-### 6.1 自動刪題檢查項目
+### 5.1 自動刪題檢查項目
 
 - low primary loading（低主要負荷）
 - cross-loading（交叉負荷）
@@ -238,7 +95,7 @@
 
 程式一次只處理一題；若兩題都可能刪除，會比較刪除後模型的問題程度。
 
-### 6.2 小樣本預設不永久自動刪題
+### 5.2 小樣本預設不永久自動刪題
 
 若 `N < disable_auto_deletion_below_n`，程式：
 
@@ -248,7 +105,7 @@
 
 這是因為 N = 20–30 的單次 EFA 非常容易受抽樣波動影響。
 
-### 6.3 `protect` 與 `content_note`
+### 5.3 `protect` 與 `content_note`
 
 在 `codebook` 中：
 
@@ -257,7 +114,7 @@
 
 保護題仍會顯示統計問題；`protect` 不是把問題藏起來，而是避免統計演算法刪掉不可替代的內容。
 
-### 6.4 內容必要題統計較弱時
+### 5.4 內容必要題統計較弱時
 
 建議：
 
@@ -269,7 +126,7 @@
 
 ---
 
-## 7. Analysis workflow（分析流程）
+## 5. Analysis workflow（分析流程）
 
 ### Stage 1. Input validation（輸入檢查）
 
@@ -360,11 +217,11 @@
 
 ---
 
-## 8. Input Excel format（輸入格式）
+## 6. Input Excel format（輸入格式）
 
 使用 `questionnaire_input_template.xlsx`。
 
-### 8.1 `responses` sheet
+### 6.1 `responses` sheet
 
 - 一列一位受試者。
 - 一欄一題。
@@ -372,7 +229,7 @@
 - ID、班級、性別、年級、Group 等背景變項可保留，但不要列入 codebook。
 - `Group` 只是選填背景變項，不參與 EFA。
 
-### 8.2 `codebook` sheet
+### 6.2 `codebook` sheet
 
 | 欄位 | 中文說明 | English meaning |
 |---|---|---|
@@ -390,7 +247,7 @@
 
 ---
 
-## 9. Installation（安裝）
+## 7. Installation（安裝）
 
 ### 方法 A：requirements.txt
 
@@ -426,7 +283,7 @@ python questionnaire_quality_pipeline.py your_questionnaire.xlsx \
 
 ---
 
-## 10. Outputs（輸出檔案）
+## 8. Outputs（輸出檔案）
 
 ### `Questionnaire_quality_report.docx`
 
@@ -501,7 +358,7 @@ Word 不放大型圖，避免圖片裁切或版面跑掉。所有表格都有文
 
 ---
 
-## 11. Configuration（設定）
+## 9. Configuration（設定）
 
 核心設定見 `config_template.yaml`。
 
@@ -542,28 +399,7 @@ thresholds:
 
 ---
 
-## 12. Recommended reporting language（建議用語）
-
-### 可以說
-
-- 「結果提供基於內部結構的初步效度證據。」
-- 「本樣本中的 EFA 支持／部分支持某因素結構。」
-- 「分量表在本樣本中呈現可接受／有限的內部一致性。」
-- 「統計替代方案顯示 Section A 與 Section B 的題目反應未被清楚區分。」
-- 「原定計分基於理論保留，因素區分仍待獨立樣本驗證。」
-
-### 不建議說
-
-- 「EFA 證明問卷有效。」
-- 「AVE > .50，所以構念效度已完成。」
-- 「HTMT < .85，所以所有區辨效度問題都不存在。」
-- 「alpha > .70，所以問卷一定是單因素。」
-- 「程式刪掉的題目一定不重要。」
-- 「同一樣本 CFA 驗證了 EFA 結果。」
-
----
-
-## 13. Sample-size policy（樣本數政策）
+## 10. Sample-size policy（樣本數政策）
 
 固定的「每題 5 人」或「每題 10 人」不能涵蓋所有情況。所需樣本與以下條件有關：
 
@@ -587,36 +423,16 @@ thresholds:
 
 ---
 
-## 14. Reproducibility and privacy（可重現性與隱私）
+## 11. Reproducibility and privacy（可重現性與隱私）
 
 - `random_seed` 固定模擬與 bootstrap 結果。
 - `analysis_manifest.json` 記錄主方法、保留題目、因素數、轉軸及輸出檔。
 - 程式在本機讀取 Excel，不需要把問卷資料傳至外部服務。
-- GitHub 範例資料應使用 synthetic data（合成資料），不要上傳含個資或可識別受試者的原始資料。
+- GitHub 範例資料應使用 synthetic data（合成資料）。
 
 ---
 
-## 15. Repository structure（建議 GitHub 結構）
-
-```text
-questionnaire-quality-pipeline/
-├── README.md
-├── questionnaire_quality_pipeline.py
-├── questionnaire_input_template.xlsx
-├── config_template.yaml
-├── requirements.txt
-├── pyproject.toml
-├── REFERENCES.md
-├── CHANGELOG.md
-├── CITATION.cff
-├── LICENSE
-├── .gitignore
-└── example_synthetic_input.xlsx
-```
-
----
-
-## 16. Important methodological references（重要方法文獻）
+## 12. Important methodological references（重要方法文獻）
 
 完整書目見 `REFERENCES.md`。核心依據包括：
 
@@ -634,7 +450,7 @@ questionnaire-quality-pipeline/
 
 ---
 
-## 17. Final interpretation principle（最終判讀原則）
+## 13. Final interpretation principle（最終判讀原則）
 
 本工具不把問卷品質簡化成「通過／不通過」。最終判斷應同時考量：
 
