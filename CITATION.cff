@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the repository release and the methodological sources listed in REFERENCES.md."
+title: "Questionnaire Quality & Measurement Structure Pipeline"
+type: software
+version: 0.2.0
+date-released: 2026-07-30
+license: MIT
+abstract: "A theory-aware Python pipeline for Likert questionnaire data checks, exploratory factor analysis, reliability, preliminary validity evidence, and manuscript-ready reporting."

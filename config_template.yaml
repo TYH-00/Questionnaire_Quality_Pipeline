@@ -1,0 +1,63 @@
+# Questionnaire Quality & Measurement Structure Pipeline
+# 問卷品質、測量結構與信效度評估設定
+
+# Input sheets / 輸入工作表
+data_sheet: responses
+codebook_sheet: codebook
+
+# If expected_factor is completed in the codebook, leave this null.
+# 若codebook已填expected_factor，可留空。
+expected_factors: null
+
+# Default Likert limits used only when codebook values are missing.
+likert_min: 1
+likert_max: 5
+
+# Response-quality screening / 作答品質檢查
+# Only excessive missingness is automatically excluded. Straightlining is flagged.
+missing_row_exclusion: 0.50
+missing_item_warning: 0.10
+straightline_sd: 0.05
+longstring_fraction: 0.80
+
+# Theory-first factor-count decisions / 理論優先的因素數判斷
+prioritize_planned_dimensions: true
+report_alternative_factor_solution: true
+small_sample_threshold: 50
+preserve_planned_below_n: 50
+planned_factor_correlation_critical: 0.90
+planned_rmsr_critical: 0.10
+planned_problem_fraction_critical: 0.30
+merge_assignment_minimum: 0.60
+split_assignment_minimum: 0.30
+
+# Conservative item refinement / 保守刪題
+# For N below disable_auto_deletion_below_n, no item is permanently auto-deleted.
+disable_auto_deletion_below_n: 50
+max_delete_fraction: 0.35
+max_delete_iterations: 20
+minimum_items_per_factor: 3
+
+# Simulation and bootstrap / 模擬與bootstrap
+random_seed: 20260730
+pa_iterations_pearson: 300
+pa_iterations_polychoric: 100
+bootstrap_iterations: 200
+bootstrap_polychoric_iterations: 50
+
+# Follow-up scripts / 後續驗證腳本
+run_confirmatory_if_feasible: true
+run_r_if_available: false
+
+thresholds:
+  loading_minimum: 0.32
+  loading_preferred: 0.40
+  cross_loading: 0.30
+  loading_gap: 0.20
+  communality_severe: 0.20
+  communality_warning: 0.40
+  msa_minimum: 0.50
+  factor_correlation_oblique: 0.20
+  redundancy_correlation: 0.85
+  htmt_strict: 0.85
+  htmt_lenient: 0.90

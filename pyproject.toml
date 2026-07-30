@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "questionnaire-quality-pipeline"
+version = "0.2.0"
+description = "Theory-aware assessment of Likert questionnaire structure, reliability, and preliminary validity evidence"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+  {name = "Questionnaire Quality Pipeline contributors"}
+]
+dependencies = [
+  "numpy>=2.0",
+  "pandas>=2.0",
+  "scipy>=1.11",
+  "statsmodels>=0.14",
+  "matplotlib>=3.8",
+  "openpyxl>=3.1",
+  "python-docx>=1.1",
+  "Jinja2>=3.1",
+  "PyYAML>=6.0"
+]
+
+[project.scripts]
+questionnaire-quality = "questionnaire_quality_pipeline:main"
+
+[tool.setuptools]
+py-modules = ["questionnaire_quality_pipeline"]
