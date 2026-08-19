@@ -16,10 +16,27 @@ The pipeline reports **reliability evidence** and **preliminary validity evidenc
 - MacCallum, R. C., Widaman, K. F., Zhang, S., & Hong, S. (1999). Sample size in factor analysis. *Psychological Methods, 4*(1), 84–99. https://doi.org/10.1037/1082-989X.4.1.84
 - Garrido, L. E., Abad, F. J., & Ponsoda, V. (2013). A new look at Horn's parallel analysis with ordinal variables. *Psychological Methods, 18*(4), 454–474. https://doi.org/10.1037/a0030005
 
+## Continuous vs. ordinal treatment of Likert items
+
+The pipeline decides whether Pearson or polychoric correlations are the primary analysis based on response-category count, skewness, and polychoric estimation stability. The decision thresholds are aligned with the following literature.
+
+- Rhemtulla, M., Brosseau-Liard, P. É., & Savalei, V. (2012). When can categorical variables be treated as continuous? A comparison of robust continuous and categorical SEM estimation methods under suboptimal conditions. *Psychological Methods, 17*(3), 354–373. https://doi.org/10.1037/a0029315
+- Dolan, C. V. (1994). Factor analysis of variables with 2, 3, 5 and 7 response categories: A comparison of categorical variable estimators using simulated data. *British Journal of Mathematical and Statistical Psychology, 47*(2), 309–326. https://doi.org/10.1111/j.2044-8317.1994.tb01039.x
+- Curran, P. J., West, S. G., & Finch, J. F. (1996). The robustness of test statistics to nonnormality and specification error in confirmatory factor analysis. *Psychological Methods, 1*(1), 16–29. https://doi.org/10.1037/1082-989X.1.1.16
+- Finney, S. J., & DiStefano, C. (2006). Non-normal and categorical data in structural equation modeling. In G. R. Hancock & R. O. Mueller (Eds.), *Structural equation modeling: A second course* (pp. 269–314). Information Age Publishing.
+- Finney, S. J., & DiStefano, C. (2013). Nonnormal and categorical data in structural equation modeling. In G. R. Hancock & R. O. Mueller (Eds.), *Structural equation modeling: A second course* (2nd ed., pp. 439–492). Information Age Publishing.
+
+Decision rules implemented: (1) items with 5 or more response categories that are not severely skewed may be treated as continuous (Pearson/ML), with negligible estimation bias (Rhemtulla et al., 2012; Dolan, 1994); (2) items with 4 or fewer categories, or with |skewness| ≥ 2 (and |kurtosis| ≥ 7), are analyzed with polychoric correlations, since normal-theory continuous estimation becomes unreliable under these conditions (Curran et al., 1996; Finney & DiStefano, 2006, 2013); (3) when the polychoric solution shows a high proportion of boundary or fallback estimates, or the sample is small with sparse response categories, the primary analysis reverts to Pearson correlations and the polychoric solution is retained only as a sensitivity check. These are pipeline decision rules calibrated to the cited thresholds, not universal statistical laws, and the non-primary correlation matrix is always reported alongside the primary one.
+
 ## Reliability
 
 - McNeish, D. (2018). Thanks coefficient alpha, we'll take it from here. *Psychological Methods, 23*(3), 412–433. https://doi.org/10.1037/met0000144
 - Sijtsma, K. (2009). On the use, the misuse, and the very limited usefulness of Cronbach's alpha. *Psychometrika, 74*, 107–120. https://doi.org/10.1007/s11336-008-9101-0
+- Nunnally, J. C. (1978). *Psychometric theory* (2nd ed.). McGraw-Hill.
+- Tavakol, M., & Dennick, R. (2011). Making sense of Cronbach's alpha. *International Journal of Medical Education, 2*, 53–55. https://doi.org/10.5116/ijme.4dfb.8dfd
+- Streiner, D. L. (2003). Starting at the beginning: An introduction to coefficient alpha and internal consistency. *Journal of Personality Assessment, 80*(1), 99–103. https://doi.org/10.1207/S15327752JPA8001_18
+
+**Interpreting alpha/omega magnitude.** Nunnally (1978) proposed a staged standard rather than a single cutoff: reliabilities of roughly .70 are treated as adequate for early-stage or exploratory scales, applied research settings are typically held to .80 or higher, and .90–.95 is reserved for contexts where decisions are made about individuals (e.g., clinical or high-stakes use) — not as a blanket target for every scale. Tavakol and Dennick (2011) summarize a practical range of .80–.95 as generally acceptable and note that values below .70 warrant caution. Values above roughly .90, and especially above .95, should prompt a check for item redundancy rather than be read as an unambiguous improvement: Streiner (2003) argues that very highly intercorrelated items usually indicate the scale is repeating the same narrow content rather than covering the construct's breadth, and recommends examining inter-item correlations and considering whether the scale can be shortened. This pipeline reports alpha/omega together with inter-item correlation ranges so that unusually high reliability can be flagged as a redundancy check rather than treated only as a success criterion.
 
 ## AVE, CR, and HTMT
 
