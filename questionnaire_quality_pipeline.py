@@ -85,6 +85,14 @@ class Thresholds:
     redundancy_correlation: float = 0.85
     htmt_strict: float = 0.85
     htmt_lenient: float = 0.90
+    # Reliability-magnitude interpretation bands. Not a pass/fail cutoff: staged
+    # guidance following Nunnally (1978), summarized by Tavakol & Dennick (2011);
+    # the two upper bands flag possible item redundancy per Streiner (2003) rather
+    # than "better." See REFERENCES.md.
+    reliability_low: float = 0.70
+    reliability_acceptable: float = 0.80
+    reliability_redundancy_watch: float = 0.90
+    reliability_redundancy_flag: float = 0.95
 
 
 @dataclass
@@ -121,6 +129,15 @@ class Config:
     merge_assignment_minimum: float = 0.60
     split_assignment_minimum: float = 0.30
     output_language: str = "zh-TW"
+    # Continuous-vs-ordinal decision thresholds, aligned with Rhemtulla, Brosseau-Liard,
+    # & Savalei (2012) and Dolan (1994) for category count, and Curran, West, & Finch (1996)
+    # / Finney & DiStefano (2006, 2013) for skewness. See REFERENCES.md.
+    few_categories_max: int = 4
+    skew_severe: float = 2.0
+    # Item-deletion recommendation tiers (post-hoc, reporting-only; does not change
+    # the auto-deletion loop). Alpha/omega deltas are treated as "meaningful" once
+    # they clear this size.
+    deletion_reliability_delta_meaningful: float = 0.02
     thresholds: Thresholds = field(default_factory=Thresholds)
 
     @staticmethod
@@ -567,8 +584,14 @@ def choose_correlation_method(
 ) -> tuple[str, list[str]]:
     reasons = []
     ordinal = bool((item_diag["unique_categories"] <= 7).mean() >= 0.80)
-    few_categories = bool(item_diag["unique_categories"].median() <= 5)
-    skewed = bool((item_diag["skewness"].abs() > 1).mean() >= 0.20)
+    # Category-count threshold: Rhemtulla, Brosseau-Liard, & Savalei (2012) and Dolan (1994)
+    # find continuous estimation is adequate once items have >= 5 response categories; bias
+    # grows once items have <= 4. cfg.few_categories_max defaults to 4 accordingly.
+    few_categories = bool(item_diag["unique_categories"].median() <= cfg.few_categories_max)
+    # Skewness threshold: Curran, West, & Finch (1996) and Finney & DiStefano (2006, 2013)
+    # treat |skewness| >= 2 (with |kurtosis| >= 7) as the point where normal-theory continuous
+    # estimation becomes unreliable. cfg.skew_severe defaults to 2.0.
+    skewed = bool((item_diag["skewness"].abs() >= cfg.skew_severe).mean() >= 0.20)
     unstable_poly = (
         poly_diag.get("fallback_fraction", 1) > 0.10
         or poly_diag.get("boundary_fraction", 1) > 0.10
@@ -577,10 +600,21 @@ def choose_correlation_method(
     sparse = bool((item_diag["sparse_category_fraction"] > 0.25).mean() >= 0.25)
 
     if ordinal and (few_categories or skewed):
-        reasons.append("題目主要為少類別Likert序位資料，polychoric相關在概念上較符合量尺性質。")
+        if few_categories:
+            reasons.append(
+                f"題目反應類別中位數為{item_diag['unique_categories'].median():.0f}點，"
+                f"未達5點門檻（Rhemtulla, Brosseau-Liard, & Savalei, 2012；Dolan, 1994），"
+                f"以polychoric相關較符合量尺性質。"
+            )
+        if skewed:
+            reasons.append(
+                f"至少20%題目偏態絕對值≥{cfg.skew_severe:.1f}"
+                f"（Curran, West, & Finch, 1996；Finney & DiStefano, 2006, 2013之門檻），"
+                f"連續估計法可能失真，改採polychoric相關。"
+            )
         preferred = "polychoric"
     else:
-        reasons.append("題目類別較多且分布較接近連續變項，Pearson相關可作為合理主分析。")
+        reasons.append("題目反應類別達5點以上且分布未達偏態門檻，Pearson相關可作為合理主分析（Rhemtulla et al., 2012）。")
         preferred = "pearson"
 
     if unstable_poly:
@@ -1354,6 +1388,30 @@ def htmt_matrix(data: pd.DataFrame, groups: dict[str, list[str]]) -> pd.DataFram
     return out
 
 
+def interpret_reliability_level(value: float, t: Thresholds) -> str:
+    """Stage a reliability coefficient (alpha or omega) into an interpretive band.
+
+    Follows Nunnally's (1978) staged guidance as summarized by Tavakol & Dennick
+    (2011): below ~.70 warrants caution; ~.70-.80 is adequate for early-stage or
+    exploratory scales; ~.80-.90 is generally acceptable for applied research.
+    Above ~.90, and especially above ~.95, the value is flagged as a redundancy
+    check per Streiner (2003) rather than treated as simply "better" - high
+    inter-item correlation can mean the scale is repeating the same narrow
+    content rather than covering the construct's breadth. See REFERENCES.md.
+    """
+    if not np.isfinite(value):
+        return "無法估計"
+    if value < t.reliability_low:
+        return "偏低，解讀宜謹慎（Tavakol & Dennick, 2011）"
+    if value < t.reliability_acceptable:
+        return "可接受，適合探索性或新量表階段（Nunnally, 1978）"
+    if value < t.reliability_redundancy_watch:
+        return "良好"
+    if value < t.reliability_redundancy_flag:
+        return "偏高，建議檢查題目是否冗餘（Tavakol & Dennick, 2011）"
+    return "非常高，建議檢查題間相關並考慮精簡題目（Streiner, 2003）"
+
+
 def reliability_validity(
     data: pd.DataFrame,
     final_fit: dict[str, Any],
@@ -1388,11 +1446,13 @@ def reliability_validity(
             "items": ", ".join(items),
             "n_items": len(items),
             "cronbach_alpha": alpha,
+            "alpha_interpretation": interpret_reliability_level(alpha, cfg.thresholds),
             "alpha_ci_lower": alpha_l,
             "alpha_ci_upper": alpha_u,
             "alpha_bootstrap_success": alpha_b,
             "ordinal_alpha": ordinal_alpha,
             "mcdonald_omega": omega,
+            "omega_interpretation": interpret_reliability_level(omega, cfg.thresholds),
             "omega_ci_lower": omega_l,
             "omega_ci_upper": omega_u,
             "omega_bootstrap_success": omega_b,
@@ -1418,6 +1478,165 @@ def reliability_validity(
 
     htmt = htmt_matrix(data[final_items], groups) if len(groups) > 1 else pd.DataFrame()
     return pd.DataFrame(rel_rows), pd.DataFrame(valid_rows), htmt
+
+
+def simulate_single_item_removal(
+    data: pd.DataFrame,
+    final_items: list[str],
+    final_fit: dict[str, Any],
+    item_to_remove: str,
+    primary_method: str,
+    k: int,
+    rotation: str,
+    codebook: pd.DataFrame,
+) -> Optional[dict[str, Any]]:
+    """Refit the model with one item removed and compare reliability for the
+    factor that item belonged to. Reporting-only: does not alter final_items.
+    """
+    trial_items = [i for i in final_items if i != item_to_remove]
+    if len(trial_items) < 3:
+        return None
+    assignments = final_fit["item_table"].set_index("item")["assigned_factor"].to_dict()
+    factor = assignments.get(item_to_remove)
+    items_before = [i for i in final_items if assignments.get(i) == factor]
+    items_after = [i for i in trial_items if i in items_before]
+    if len(items_before) < 2:
+        return None
+
+    try:
+        if primary_method == "polychoric":
+            corr_after, _, _ = polychoric_correlation(data[trial_items])
+        else:
+            corr_after, _ = pearson_correlation(data[trial_items])
+        msa_after, kmo_after = kmo_from_corr(corr_after.values)
+        k_trial = min(k, max(1, len(trial_items) - 2))
+        levels, mapping = planned_factor_info(codebook, trial_items)
+        fit_after = fit_factor_model(corr_after, len(data), k_trial, "pa", rotation, trial_items, levels, mapping)
+    except Exception:
+        fit_after = None
+        kmo_after = np.nan
+
+    alpha_before = cronbach_alpha(data[items_before])
+    alpha_after = cronbach_alpha(data[items_after]) if len(items_after) >= 2 else np.nan
+    omega_before, _ = omega_one_factor(data[items_before].corr(), len(data))
+    omega_after, _ = (
+        omega_one_factor(data[items_after].corr(), len(data)) if len(items_after) >= 2 else (np.nan, None)
+    )
+    msa_before, kmo_before = kmo_from_corr(data[final_items].corr().values)
+
+    return {
+        "item": item_to_remove,
+        "factor": factor,
+        "n_items_in_factor_before": len(items_before),
+        "n_items_in_factor_after": len(items_after),
+        "alpha_before": alpha_before,
+        "alpha_after": alpha_after,
+        "alpha_delta": (alpha_after - alpha_before) if pd.notna(alpha_after) and pd.notna(alpha_before) else np.nan,
+        "omega_before": omega_before,
+        "omega_after": omega_after,
+        "omega_delta": (omega_after - omega_before) if pd.notna(omega_after) and pd.notna(omega_before) else np.nan,
+        "kmo_total_before": kmo_before,
+        "kmo_total_after": kmo_after,
+        "refit_succeeded": fit_after is not None,
+    }
+
+
+def build_deletion_recommendations(
+    data: pd.DataFrame,
+    final_items: list[str],
+    final_fit: dict[str, Any],
+    final_diagnostics: pd.DataFrame,
+    primary_method: str,
+    codebook: pd.DataFrame,
+    cfg: Config,
+) -> pd.DataFrame:
+    """Post-hoc, reporting-only item-deletion recommendation table.
+
+    Tiers every remaining item flagged 'severe' or 'warning' by diagnose_items()
+    into 建議必須刪除 / 可能可以刪除 / 不建議刪除（受保護或會使因素題數不足）,
+    each backed by a simulated single-item-removal comparison of alpha/omega/KMO.
+    This never changes final_items; it is a decision-support table only, aimed
+    at reviewers who want transparent alpha/omega deltas rather than a machine
+    verdict.
+    """
+    protected_items: set[str] = set()
+    if not codebook.empty and "protect" in codebook.columns:
+        protected_items = set(codebook.loc[codebook["protect"].map(boolish), "item"].astype(str).str.strip())
+    _, expected_map = planned_factor_info(codebook, final_items)
+    k = final_fit["metrics"]["k"]
+    rotation = final_fit["metrics"]["rotation"]
+
+    flagged = final_diagnostics[final_diagnostics["diagnostic_level"].isin(["severe", "warning"])].copy()
+    rows = []
+    for _, row in flagged.iterrows():
+        item = row["item"]
+        is_protected = item in protected_items
+        can_delete = eligible_to_delete(
+            item, final_items, final_diagnostics, expected_map,
+            cfg.minimum_items_per_factor, protected_items,
+        )
+        sim = simulate_single_item_removal(
+            data, final_items, final_fit, item, primary_method, k, rotation, codebook,
+        )
+        delta_thresh = cfg.deletion_reliability_delta_meaningful
+        alpha_delta = sim["alpha_delta"] if sim else np.nan
+        omega_delta = sim["omega_delta"] if sim else np.nan
+        improves = (pd.notna(alpha_delta) and alpha_delta >= delta_thresh) or (
+            pd.notna(omega_delta) and omega_delta >= delta_thresh
+        )
+        worsens = (pd.notna(alpha_delta) and alpha_delta <= -delta_thresh) or (
+            pd.notna(omega_delta) and omega_delta <= -delta_thresh
+        )
+
+        if not can_delete:
+            tier = "不建議刪除（受保護或因素題數已達下限）"
+        elif row["diagnostic_level"] == "severe" and not worsens:
+            tier = "建議必須刪除"
+        elif row["diagnostic_level"] == "warning" and improves:
+            tier = "建議必須刪除"
+        elif worsens:
+            tier = "不建議刪除（模擬顯示信度反而下降）"
+        else:
+            tier = "可能可以刪除"
+
+        reason_bits = [row["diagnostic_reasons"]]
+        if is_protected:
+            reason_bits.append("題目設定為protect=TRUE，不予自動刪除建議。")
+        if sim and sim["refit_succeeded"]:
+            reason_bits.append(
+                f"模擬刪除後所屬因素alpha由{fmt(sim['alpha_before'])}變為{fmt(sim['alpha_after'])}"
+                f"（Δ={fmt(alpha_delta)}），omega由{fmt(sim['omega_before'])}變為{fmt(sim['omega_after'])}"
+                f"（Δ={fmt(omega_delta)}）。"
+            )
+        elif sim is None:
+            reason_bits.append("該因素題數過少，無法模擬刪除後信度。")
+        else:
+            reason_bits.append("模擬刪除後因素模型重新估計失敗，僅供參考。")
+
+        rows.append({
+            "item": item,
+            "diagnostic_level": row["diagnostic_level"],
+            "tier": tier,
+            "protected": is_protected,
+            "assigned_factor": row.get("assigned_factor"),
+            "diagnostic_reasons": row["diagnostic_reasons"],
+            "alpha_before": sim["alpha_before"] if sim else np.nan,
+            "alpha_after": sim["alpha_after"] if sim else np.nan,
+            "alpha_delta": alpha_delta,
+            "omega_before": sim["omega_before"] if sim else np.nan,
+            "omega_after": sim["omega_after"] if sim else np.nan,
+            "omega_delta": omega_delta,
+            "kmo_total_before": sim["kmo_total_before"] if sim else np.nan,
+            "kmo_total_after": sim["kmo_total_after"] if sim else np.nan,
+            "explanation": " ".join(reason_bits),
+        })
+
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        tier_order = {"建議必須刪除": 0, "可能可以刪除": 1, "不建議刪除（模擬顯示信度反而下降）": 2, "不建議刪除（受保護或因素題數已達下限）": 3}
+        out["_order"] = out["tier"].map(tier_order).fillna(9)
+        out = out.sort_values(["_order", "diagnostic_level"], ascending=[True, True]).drop(columns="_order")
+    return out
 
 
 # -----------------------------------------------------------------------------
@@ -1975,6 +2194,7 @@ def make_docx_report(
     figure_paths: dict[str, Path],
 ) -> None:
     doc = Document()
+    cfg_thresholds = analysis["config"].thresholds
     styles = doc.styles
     styles["Normal"].font.name = "Microsoft JhengHei"
     styles["Normal"].font.size = Pt(10.5)
@@ -2036,6 +2256,20 @@ def make_docx_report(
         doc.add_paragraph("每次僅刪除一題，刪除後重新估計因素模型。刪題理由如下：")
         add_docx_table(doc, analysis["deleted_items"][["iteration", "item", "reason", "primary_loading", "secondary_loading", "loading_gap", "communality", "msa", "expected_factor"]])
 
+    rec = analysis.get("deletion_recommendations", pd.DataFrame())
+    doc.add_heading("六之一、刪題建議分級（決策輔助，未實際刪除）", level=1)
+    if rec.empty:
+        doc.add_paragraph("最終題組中沒有題目被標記為severe或warning，因此無刪題建議。")
+    else:
+        must = rec[rec["tier"] == "建議必須刪除"]
+        maybe = rec[rec["tier"] == "可能可以刪除"]
+        doc.add_paragraph(
+            f"以下針對最終題組中仍有統計疑慮的題目，模擬單題刪除後同因素alpha/omega變化，"
+            f"分級為「建議必須刪除」（{len(must)}題）、「可能可以刪除」（{len(maybe)}題）及不建議刪除（受保護或會使因素題數不足）。"
+            f"此表僅供決策參考，不會自動變更最終題組，是否刪除仍須研究者依內容效度判斷。"
+        )
+        add_docx_table(doc, rec[["item", "tier", "alpha_before", "alpha_after", "alpha_delta", "omega_before", "omega_after", "omega_delta", "explanation"]])
+
     doc.add_heading("七、最終因素結構", level=1)
     doc.add_paragraph(
         f"最終保留{len(analysis['final_items'])}題、{analysis['final_fit']['metrics']['k']}個因素；轉軸為{analysis['final_fit']['metrics']['rotation']}，RMSR={analysis['final_fit']['metrics']['rmsr']:.3f}。"
@@ -2045,7 +2279,27 @@ def make_docx_report(
     add_docx_table(doc, final_summary, max_rows=25)
 
     doc.add_heading("八、信度與效度證據", level=1)
-    doc.add_paragraph("信度分別依各因素計算，不以多構面問卷總分的α作為單一品質指標。主要報告McDonald’s omega，並附Cronbach’s alpha與序位版本。")
+    doc.add_paragraph("信度分別依各因素計算，不以多構面問卷總分的α作為單一品質指標。主要報告McDonald's omega，並附Cronbach's alpha與序位版本。")
+    doc.add_paragraph(
+        "信度數值區間依Nunnally (1978)之分階建議（經Tavakol & Dennick, 2011整理）解讀："
+        "低於.70宜謹慎解讀；.70–.80適合探索性或新量表階段；.80–.90一般可接受；"
+        "高於.90，尤其高於.95，不代表單純更好，而是提示應檢查題目是否冗餘（Streiner, 2003），"
+        "宜回頭檢視題間相關並考慮是否精簡題目。"
+    )
+    rel_tbl = analysis["reliability"]
+    if not rel_tbl.empty:
+        low_flag = rel_tbl[rel_tbl["mcdonald_omega"] < cfg_thresholds.reliability_low]
+        redundancy_flag = rel_tbl[rel_tbl["mcdonald_omega"] >= cfg_thresholds.reliability_redundancy_watch]
+        if not low_flag.empty:
+            doc.add_paragraph(
+                f"信度偏低（ω<{cfg_thresholds.reliability_low:.2f}）的分量表：" +
+                "；".join(f"{r['factor']}（ω={fmt(r['mcdonald_omega'])}）" for _, r in low_flag.iterrows())
+            )
+        if not redundancy_flag.empty:
+            doc.add_paragraph(
+                f"信度偏高（ω≥{cfg_thresholds.reliability_redundancy_watch:.2f}），建議檢查題目冗餘的分量表：" +
+                "；".join(f"{r['factor']}（ω={fmt(r['mcdonald_omega'])}）" for _, r in redundancy_flag.iterrows())
+            )
     add_docx_table(doc, analysis["reliability"])
     add_docx_table(doc, analysis["validity"])
     if not analysis["htmt"].empty:
@@ -2099,8 +2353,13 @@ h1,h2{color:#17365d} table{border-collapse:collapse;width:100%;font-size:13px;ma
 {% if planned_table %}<h3>原定方案</h3>{{ planned_table|safe }}{{ planned_crosswalk|safe }}{% if planned_fig %}<img src="{{planned_fig}}">{% endif %}{% endif %}
 {% if alternative_table %}<h3>統計替代方案</h3>{{ alternative_table|safe }}{{ alternative_crosswalk|safe }}{{ merge_candidates|safe }}{% if alternative_fig %}<img src="{{alternative_fig}}">{% endif %}{% endif %}
 <h2>5. 刪題紀錄</h2>{{ deleted_table|safe }}
+<h2>5之1. 刪題建議分級（決策輔助，未實際刪除）</h2>
+<p class="small">對最終題組中仍有severe／warning診斷的題目，模擬單題刪除後同因素alpha/omega/KMO的變化，分為建議必須刪除／可能可以刪除／不建議刪除，僅供研究者參考，不會自動變更最終題組。</p>
+{{ deletion_recommendation_table|safe }}
 <h2>6. 最終工作方案</h2>{{ loading_table|safe }}{% if loadings %}<img src="{{loadings}}">{% endif %}{% if phi %}<img src="{{phi}}">{% endif %}
-<h2>7. 信度與初步效度證據</h2>{{ reliability_table|safe }}{{ validity_table|safe }}{{ htmt_table|safe }}{% if reliability_fig %}<img src="{{reliability_fig}}">{% endif %}
+<h2>7. 信度與初步效度證據</h2>
+<p class="small">信度區間依Nunnally (1978)之分階建議（經Tavakol &amp; Dennick, 2011整理）解讀：低於.70宜謹慎解讀；.70–.80適合探索性或新量表階段；.80–.90一般可接受；高於.90、尤其高於.95，提示應檢查題目是否冗餘（Streiner, 2003），而非單純視為更好。</p>
+{{ reliability_table|safe }}{{ validity_table|safe }}{{ htmt_table|safe }}{% if reliability_fig %}<img src="{{reliability_fig}}">{% endif %}
 <h2>8. 穩定性</h2>{{ stability_table|safe }}{% if stability_fig %}<img src="{{stability_fig}}">{% endif %}
 <h2>9. CFA／ESEM</h2><p>{{ feasibility }}</p>
 <div class="note">完整的替代相關矩陣、候選模型、刪題分支、pattern/structure matrix與殘差矩陣，請見 Questionnaire_quality_details.xlsx。</div>
@@ -2133,6 +2392,7 @@ def make_html_report(path: Path, analysis: dict[str, Any], figures: dict[str, Pa
         alternative_crosswalk=(analysis["alternative_crosswalk"].to_html(index=False, float_format=lambda x: f"{x:.3f}") if analysis.get("alternative_crosswalk") is not None and not analysis["alternative_crosswalk"].empty else ""),
         merge_candidates=(analysis["merge_candidates"].to_html(index=False, float_format=lambda x: f"{x:.3f}") if analysis.get("merge_candidates") is not None and not analysis["merge_candidates"].empty else "<p>未形成明確section合併候選，或合併比例未達設定門檻。</p>"),
         deleted_table=(analysis["deleted_items"].to_html(index=False, float_format=lambda x: f"{x:.3f}") if not analysis["deleted_items"].empty else "<p>未自動刪題。</p>"),
+        deletion_recommendation_table=(analysis["deletion_recommendations"].to_html(index=False, float_format=lambda x: f"{x:.3f}") if not analysis.get("deletion_recommendations", pd.DataFrame()).empty else "<p>最終題組中沒有題目被標記為severe或warning。</p>"),
         loading_table=analysis["final_fit"]["loadings"].reset_index().rename(columns={"index": "item"}).to_html(index=False, float_format=lambda x: f"{x:.3f}"),
         reliability_table=analysis["reliability"].to_html(index=False, float_format=lambda x: f"{x:.3f}"),
         validity_table=analysis["validity"].to_html(index=False, float_format=lambda x: f"{x:.3f}"),
@@ -2252,6 +2512,10 @@ def run_analysis(input_file: str, output_dir: str, config_file: Optional[str] = 
     except Exception:
         final_alt_fit = None
 
+    deletion_recommendations = build_deletion_recommendations(
+        clean, final_items, final_fit, refinement["final_diagnostics"], primary_method, codebook, cfg,
+    )
+
     reliability, validity, htmt = reliability_validity(clean, final_fit, final_items, final_poly, cfg)
     planned_reliability = planned_validity = planned_htmt = pd.DataFrame()
     alternative_reliability = alternative_validity = alternative_htmt = pd.DataFrame()
@@ -2331,6 +2595,7 @@ def run_analysis(input_file: str, output_dir: str, config_file: Optional[str] = 
         "iteration_log": refinement["iteration_log"],
         "deleted_items": refinement["deleted_items"],
         "alternative_deletions": refinement["alternative_deletions"],
+        "deletion_recommendations": deletion_recommendations,
         "final_items": final_items,
         "final_fit": final_fit,
         "final_alt_fit": final_alt_fit,
@@ -2399,6 +2664,7 @@ def run_analysis(input_file: str, output_dir: str, config_file: Optional[str] = 
         "Iteration_Log": refinement["iteration_log"],
         "Deleted_Items": refinement["deleted_items"],
         "Alternative_Deletions": refinement["alternative_deletions"],
+        "Item_Deletion_Recommendations": deletion_recommendations,
         "Final_Pattern_Matrix": final_fit["loadings"],
         "Final_Structure_Matrix": final_fit["structure"],
         "Final_Factor_Correlations": final_fit["phi"],
@@ -2416,6 +2682,8 @@ def run_analysis(input_file: str, output_dir: str, config_file: Optional[str] = 
         f"主分析相關矩陣：{primary_method}",
         "Pattern matrix為斜交轉軸下的主要解釋表；Structure matrix僅作輔助。",
         "刪題為保守自動程序，仍須由研究者確認題目內容效度。",
+        "Item_Deletion_Recommendations為決策輔助表：對每個severe/warning題模擬單題刪除後的alpha/omega/KMO變化，"
+        "分為建議必須刪除／可能可以刪除／不建議刪除三級，不會改變Final題組，最終刪或不刪仍由研究者判斷。",
     ] + analysis["input_messages"]
     write_side_excel(out / "Questionnaire_quality_details.xlsx", side_sheets, notes)
 
